@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="description" content="Mesh BDF: Barycentric Dominance Field for 3D Native Mesh Generation">
+    <meta name="keywords" content="3D Mesh Generation, Diffusion, BDF, Barycentric Dominance Field">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mesh BDF</title>
+
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+
+    <link rel="stylesheet" href="./static/css/bulma.min.css">
+    <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+    <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+    <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+    <link rel="stylesheet" href="./static/css/index.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        @font-face {
+            font-family: 'Trajan Pro';
+            src: url('static/fonts/Trajan Pro Regular.ttf') format('truetype');
+        }
+
+        .publication-title {
+            font-family: 'Trajan Pro', serif;
+        }
+
+        h2 {
+            font-family: 'Trajan Pro', serif;
+        }
+
+        /* ===== Hero / global polish ===== */
+        body {
+            background-color: #fbfcfe;
+        }
+
+        .hero .title.is-2 {
+            line-height: 1.25;
+            letter-spacing: 0.2px;
+        }
+
+        .publication-authors {
+            margin-top: 6px;
+            margin-bottom: 6px;
+        }
+
+        .publication-links {
+            margin-top: 18px;
+        }
+
+        .publication-links .button {
+            margin: 4px 4px;
+        }
+
+        /* Section title underline accent */
+        .title.is-3 {
+            position: relative;
+            display: inline-block;
+            padding-bottom: 8px;
+        }
+
+        .title.is-3::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            transform: translateX(-50%);
+            width: 56px;
+            height: 3px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #3b4cc0, #b40426);
+        }
+
+        /* ===== Interactive BDF demo styles ===== */
+        .bdf-demo-section {
+            background: linear-gradient(180deg, #f6f9ff 0%, #fdfbf7 100%) !important;
+        }
+
+        .bdf-demo-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 22px;
+            margin-top: 10px;
+        }
+
+        .bdf-demo-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: stretch;
+            gap: 24px;
+            width: 100%;
+        }
+
+        .bdf-canvas-card {
+            background: #ffffff;
+            border: 1px solid #e3e8ef;
+            border-radius: 14px;
+            padding: 16px 16px 10px 16px;
+            box-shadow: 0 4px 14px rgba(30, 50, 90, 0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .bdf-canvas-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 22px rgba(30, 50, 90, 0.10);
+        }
+
+        .bdf-canvas-card h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: center;
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+            letter-spacing: 0.2px;
+        }
+
+        .bdf-canvas-card canvas {
+            display: block;
+            background: #ffffff;
+            border-radius: 8px;
+            cursor: crosshair;
+        }
+
+        .bdf-info-panel {
+            min-width: 260px;
+            background: #ffffff;
+            border: 1px solid #e3e8ef;
+            border-radius: 14px;
+            padding: 18px 20px;
+            box-shadow: 0 4px 14px rgba(30, 50, 90, 0.06);
+            font-family: 'Google Sans', 'Noto Sans', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .bdf-info-panel h4 {
+            margin: 0 0 12px 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 1px solid #eef1f5;
+            padding-bottom: 8px;
+        }
+
+        .bdf-info-panel .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 7px 0;
+            font-size: 0.95rem;
+        }
+
+        .bdf-info-panel .label {
+            color: #555;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .bdf-info-panel .label .swatch {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .bdf-info-panel .value {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            color: #1f2d3d;
+            background: #f4f7fb;
+            padding: 2px 8px;
+            border-radius: 4px;
+            min-width: 56px;
+            text-align: right;
+        }
+
+        .bdf-info-panel .bdf-value {
+            margin-top: 14px;
+            padding: 12px 14px;
+            background: linear-gradient(135deg, #3b4cc0 0%, #b40426 100%);
+            color: white;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            box-shadow: 0 3px 8px rgba(60, 76, 192, 0.25);
+        }
+
+        .bdf-controls {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            margin-top: 4px;
+            background: #ffffff;
+            border: 1px solid #e3e8ef;
+            border-radius: 12px;
+            padding: 12px 18px;
+            box-shadow: 0 2px 8px rgba(30, 50, 90, 0.04);
+        }
+
+        .bdf-controls label {
+            font-size: 0.92rem;
+            color: #444;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .bdf-controls input[type="range"] {
+            width: 150px;
+            accent-color: #3b4cc0;
+        }
+
+        .bdf-controls button {
+            padding: 6px 16px;
+            background: linear-gradient(135deg, #3b4cc0, #6a82d6);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.92rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: filter 0.2s, transform 0.1s;
+        }
+
+        .bdf-controls button:hover {
+            filter: brightness(1.1);
+        }
+
+        .bdf-controls button:active {
+            transform: translateY(1px);
+        }
+
+        .bdf-legend {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.88rem;
+            color: #555;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* coolwarm gradient bar */
+        .bdf-legend .gradient-bar {
+            width: 180px;
+            height: 12px;
+            border-radius: 3px;
+            background: linear-gradient(to right,
+                rgb(59, 76, 192),
+                rgb(144, 178, 254),
+                rgb(220, 220, 220),
+                rgb(244, 154, 123),
+                rgb(180, 4, 38));
+            border: 1px solid #ccc;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+        }
+
+        .bdf-controls-divider {
+            width: 1px;
+            height: 24px;
+            background: #e3e8ef;
+        }
+
+        /* ===== Pipeline figures ===== */
+        .pipeline-figure {
+            margin: 36px 0;
+            text-align: center;
+            background: #ffffff;
+            border: 1px solid #e3e8ef;
+            border-radius: 12px;
+            padding: 22px 22px 18px 22px;
+            box-shadow: 0 3px 12px rgba(30, 50, 90, 0.05);
+        }
+
+        .pipeline-figure img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+        }
+
+        .pipeline-figure .caption {
+            margin-top: 14px;
+            font-size: 0.92rem;
+            color: #555;
+            text-align: justify;
+            padding: 0 6px;
+            line-height: 1.55;
+        }
+
+        .pipeline-figure .caption b {
+            color: #2c3e50;
+        }
+    </style>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script defer src="./static/js/fontawesome.all.min.js"></script>
+    <script src="./static/js/bulma-carousel.min.js"></script>
+    <script src="./static/js/bulma-slider.min.js"></script>
+    <script src="./static/js/index.js"></script>
+</head>
+
+<body>
+
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop">
+                <div class="columns is-centered">
+                    <div class="column has-text-centered">
+          <h1 class="title is-2">Mesh BDF: Barycentric Dominance Field for 3D Native Mesh Generation</h1>
+
+          <h2 class="title is-4" style="color: #ce2738; font-weight: bold;"></h2>
+
+          
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              <a href="https://scholar.google.com/citations?user=5LbyDkcAAAAJ&hl=zh-CN" target="_blank" rel="noopener noreferrer">
+                Gaochao Song</a><sup>1,2</sup>,
+            </span>
+            
+            <span class="author-block">
+              <a href="https://whaohan.github.io/" target="_blank" rel="noopener noreferrer">
+                Haohan Weng</a><sup>3</sup>,
+            </span>
+            <span class="author-block">
+              <a href="https://google.com" target="_blank" rel="noopener noreferrer">
+                Luo Zhang</a><sup>4</sup>,
+            </span>
+            <span class="author-block">
+              <a href="https://maikouuu.github.io/" target="_blank" rel="noopener noreferrer">
+                Zibo Zhao</a><sup>3</sup>,
+            </span>
+            <span class="author-block">
+              <a href="https://scholar.google.com.sg/citations?user=fe-1v0MAAAAJ&hl=en" target="_blank" rel="noopener noreferrer">
+                Shenghua Gao</a><sup>1,2</sup>
+            </span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>1</sup>HKU </span>
+            <span class="author-block"><sup>2</sup>Shenzhen Loop Area Institute, </span>
+            <span class="author-block"><sup>3</sup>Tencent Hunyuan 3D, </span>
+            <span class="author-block"><sup>4</sup>NTU</span>
+          </div>
+          
+
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <span class="link-block">
+                <a href="https://google.com" target="_blank" rel="noopener noreferrer"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fas fa-file-pdf" style="color: orangered"></i>
+                  </span>
+                  <span>Paper</span>
+                </a>
+              </span>
+              <!-- Code Link. -->
+              <span class="link-block">
+                <a href="https://github.com/gaochao-s/MeshBDF" target="_blank" rel="noopener noreferrer"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-github"></i>
+                  </span>
+                  <span>
+                    Code (Coming)
+                  </span>
+                </a>
+              </span>
+              <!-- Hugging Face Space -->
+              <span class="link-block">
+                <a href="https://huggingface.co/gcsong/mesh_silksong/tree/main" target="_blank" rel="noopener noreferrer"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      &#129303;
+                  </span>
+                  <span>Check Points (Coming)</span>
+                </a>
+              </span>
+              
+            </div>
+            
+            
+          </div>
+        </div>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+    <section class="hero teaser">
+        <div class="container is-max-desktop">
+        </div>
+    </section>
+
+    <!-- ============== Abstract ============== -->
+    <section class="section pt-0">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered has-text-centered">
+          <div class="column is-four-fifths">
+            <h2 class="title is-3">Abstract</h2>
+            <div class="content has-text-justified">
+              <p>
+                Autoregressive (AR) modeling has recently achieved remarkable progress in native 3D mesh generation, largely due to its natural ability to handle variable-length, discrete data structures. However, the inherent constraints of the AR paradigm severely restrict the generated meshes, leading to limited face counts, bounded vertex resolutions, and difficulties in supporting textures. To overcome these bottlenecks, we propose the <b>Barycentric Dominance Field (BDF)</b>, a continuous representation defined on triangular mesh surfaces that elegantly encodes vertex topological connectivity. BDF bridges the fundamental gap between discrete mesh topology and continuous diffusion-based generative modeling by transforming connectivity into a continuous surface signal. As an intrinsic mesh property, BDF shares strong similarities with texture maps, enabling its seamless integration into existing 3D diffusion pipelines without requiring architectural modifications. Extensive experiments demonstrate that BDF empowers diffusion models to generate native meshes with significantly higher quality, greater scalability, and stronger robustness compared to state-of-the-art autoregressive methods.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== BDF Illustration (Interactive Demo) ============== -->
+    <section class="hero is-small bdf-demo-section">
+      <div class="container is-max-desktop" style="padding: 50px 20px;">
+        <div class="columns is-centered has-tex-centered">
+            <h2 class="title is-3">BDF Illustration</h2>
+        </div>
+        <div class="content has-text-justified" style="max-width: 880px; margin: 0 auto 18px auto;">
+          <p>
+            Given a triangle with vertices \( V_1, V_2, V_3 \), any interior point \( p \) can be uniquely expressed by its <b>barycentric coordinates</b> \( (w_1, w_2, w_3) \) satisfying \( w_1 + w_2 + w_3 = 1,\; w_i \ge 0 \). We define the <b>Barycentric Dominance Field</b> at \( p \) as
+            $$ B(p) = \max(w_1,\; w_2,\; w_3). $$
+            \( B(p) \) takes its minimum value \( 1/3 \) at the centroid and reaches \( 1 \) at the three vertices. Drag the white point inside the triangle below to see how the barycentric weights and BDF value change in real time. The right panel visualizes \( B \) as a scalar field over the entire triangle surface, where white iso-lines denote BDF contours.
+          </p>
+        </div>
+
+        <div class="bdf-demo-wrapper">
+          <div class="bdf-demo-row">
+            <!-- Interactive triangle (left) -->
+            <div class="bdf-canvas-card">
+              <h4>Interactive Triangle</h4>
+              <canvas id="bdf-tri-canvas" width="380" height="360"></canvas>
+            </div>
+
+            <!-- BDF Field (middle) -->
+            <div class="bdf-canvas-card">
+              <h4>BDF as a Scalar Field</h4>
+              <canvas id="bdf-field-canvas" width="380" height="360"></canvas>
+            </div>
+
+            <!-- Info panel (right) -->
+            <div class="bdf-info-panel">
+              <h4>Live Values</h4>
+              <div class="row">
+                <span class="label"><span class="swatch" style="background:#e74c3c"></span>w<sub>1</sub> (V<sub>1</sub>)</span>
+                <span class="value" id="bdf-w1">0.333</span>
+              </div>
+              <div class="row">
+                <span class="label"><span class="swatch" style="background:#27ae60"></span>w<sub>2</sub> (V<sub>2</sub>)</span>
+                <span class="value" id="bdf-w2">0.333</span>
+              </div>
+              <div class="row">
+                <span class="label"><span class="swatch" style="background:#f39c12"></span>w<sub>3</sub> (V<sub>3</sub>)</span>
+                <span class="value" id="bdf-w3">0.333</span>
+              </div>
+              <div class="bdf-value">B(p) = <span id="bdf-bvalue">0.333</span></div>
+              <div style="margin-top: 14px; font-size: 0.85rem; color: #666; line-height: 1.5;">
+                Range: \( B(p) \in [1/3,\; 1] \).<br>
+                Min at centroid &middot; max at vertices.
+              </div>
+            </div>
+          </div>
+
+          <div class="bdf-controls">
+            <div class="bdf-legend">
+              <span>1/3</span>
+              <span class="gradient-bar"></span>
+              <span>1</span>
+            </div>
+            <span class="bdf-controls-divider"></span>
+            <label>
+              <input type="checkbox" id="bdf-show-contours" checked>
+              Show BDF contours
+            </label>
+            <label>
+              Contour count:
+              <input type="range" id="bdf-contour-count" min="3" max="20" value="10">
+              <span id="bdf-contour-count-val" style="min-width: 22px; text-align: right; font-family: 'Courier New', monospace;">10</span>
+            </label>
+            <span class="bdf-controls-divider"></span>
+            <button id="bdf-reset-btn">Reset Point</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== Pipeline ============== -->
+    <section class="section">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered has-text-centered">
+          <div class="column is-four-fifths">
+            <h2 class="title is-3">Pipeline</h2>
+            <div class="content has-text-justified">
+              <p>
+                We adopt a sparse-voxel + flow-based 3D generation backbone (Trellis.2) and integrate BDF as an additional surface signal (like texture) alongside geometry. The pipeline consists of two main stages: (1) <b>BDF Encoding &amp; Decoding</b> represents discrete mesh connectivity as a continuous BDF stored on voxel edges, with mesh recovery via vertex Non-Maximum Suppression and BDF-guided flood fill on a Dual-Contouring grid; (2) <b>VAE + Flow Generation</b> processes BDF in the same way as PBR textures, enabling unified, architecture-free integration into mature 3D VAE and diffusion frameworks.
+              </p>
+            </div>
+
+            <div class="pipeline-figure">
+              <img src="./static/images/bdf_encdec_01.png" alt="BDF Encoding and Decoding Pipeline"/>
+              <div class="caption">
+                <b>Figure 1.</b> BDF Encoding &amp; Decoding. <i>Top (Encoding)</i>: voxel edges intersecting the mesh surface store the BDF values of the intersection points; each sparse voxel keeps only three orthogonal edges (x, y, z) to avoid redundancy. <i>Bottom (Decoding)</i>: mesh vertices are first identified via Non-Maximum Suppression on local BDF maxima, then a BDF-guided flood-fill propagates along contours to reconstruct an equivalent Voronoi-style mesh (like dual mesh).
+              </div>
+            </div>
+
+            <div class="pipeline-figure">
+              <img src="./static/images/vaeflow_01.png" alt="BDF VAE and Flow Pipeline"/>
+              <div class="caption">
+                <b>Figure 2.</b> VAE + Flow generation with BDF. By conceptualizing BDF as an intrinsic surface texture, we seamlessly plug it into existing 3D VAE and flow-matching diffusion frameworks without any architectural modifications, enabling unified native mesh and PBR texture generation in a single pipeline.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="BibTeX">
+      <div class="container is-max-desktop content">
+        <h2 class="title">Citation</h2>
+        <pre class="selectable">
+
+</pre>
+      </div>
+    </section>
+
+    <footer class="footer pt-4 pb-0">
+      <div class="container">
+        <div class="columns is-centered">
+          <div class="column is-8">
+            <div class="content">
+              <p>
+                Website template based on
+                <a href="https://github.com/nerfies/nerfies.github.io">Nerfies</a>,
+                <a href="https://marigoldmonodepth.github.io/">Marigold</a>,
+                <a href="https://zhaorw02.github.io/DeepMesh/">DeepMesh</a>
+                and licensed under
+                <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">CC-BY-SA-4.0</a>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- =============== Interactive BDF demo script =============== -->
+    <script>
+    (function() {
+        // ------- Setup canvases -------
+        const triCanvas = document.getElementById('bdf-tri-canvas');
+        const fieldCanvas = document.getElementById('bdf-field-canvas');
+        const triCtx = triCanvas.getContext('2d');
+        const fieldCtx = fieldCanvas.getContext('2d');
+
+        const W = triCanvas.width;
+        const H = triCanvas.height;
+
+        // Triangle vertices (in canvas coordinates)
+        const V1 = { x: W * 0.50, y: H * 0.12 };
+        const V2 = { x: W * 0.10, y: H * 0.86 };
+        const V3 = { x: W * 0.90, y: H * 0.86 };
+
+        // Centroid (initial point position)
+        const centroid = {
+            x: (V1.x + V2.x + V3.x) / 3,
+            y: (V1.y + V2.y + V3.y) / 3
+        };
+
+        let pt = { x: centroid.x, y: centroid.y };
+        let dragging = false;
+
+        // ------- Barycentric helpers -------
+        function barycentric(p, a, b, c) {
+            const v0x = b.x - a.x, v0y = b.y - a.y;
+            const v1x = c.x - a.x, v1y = c.y - a.y;
+            const v2x = p.x - a.x, v2y = p.y - a.y;
+            const den = v0x * v1y - v1x * v0y;
+            const v = (v2x * v1y - v1x * v2y) / den;
+            const w = (v0x * v2y - v2x * v0y) / den;
+            const u = 1 - v - w;
+            // Returns weights for (a, b, c)
+            return [u, v, w];
+        }
+
+        function clampToTriangle(p) {
+            const [w1, w2, w3] = barycentric(p, V1, V2, V3);
+            if (w1 >= 0 && w2 >= 0 && w3 >= 0) return p;
+            // Clamp negative weights to 0 and renormalize, then map back to cartesian
+            let a = Math.max(w1, 0), b = Math.max(w2, 0), c = Math.max(w3, 0);
+            const s = a + b + c;
+            a /= s; b /= s; c /= s;
+            return {
+                x: a * V1.x + b * V2.x + c * V3.x,
+                y: a * V1.y + b * V2.y + c * V3.y
+            };
+        }
+
+        // ------- Coolwarm colormap (matplotlib-style blue -> white -> red) -------
+        const cmapStops = [
+            [0.00, [59,  76, 192]],
+            [0.25, [144, 178, 254]],
+            [0.50, [220, 220, 220]],
+            [0.75, [244, 154, 123]],
+            [1.00, [180,   4,  38]]
+        ];
+        function colormap(t) {
+            t = Math.max(0, Math.min(1, t));
+            for (let i = 0; i < cmapStops.length - 1; i++) {
+                const [t0, c0] = cmapStops[i];
+                const [t1, c1] = cmapStops[i + 1];
+                if (t <= t1) {
+                    const k = (t - t0) / (t1 - t0);
+                    return [
+                        Math.round(c0[0] + (c1[0] - c0[0]) * k),
+                        Math.round(c0[1] + (c1[1] - c0[1]) * k),
+                        Math.round(c0[2] + (c1[2] - c0[2]) * k)
+                    ];
+                }
+            }
+            return cmapStops[cmapStops.length - 1][1];
+        }
+
+        // ------- Pre-render BDF field on right canvas -------
+        // BDF range is [1/3, 1]. Normalize to [0, 1] for the colormap.
+        const fieldW = fieldCanvas.width;
+        const fieldH = fieldCanvas.height;
+        const fieldImg = fieldCtx.createImageData(fieldW, fieldH);
+        // bdfMap caches B(p) (in [1/3,1]) for each pixel inside the triangle (NaN outside)
+        const bdfMap = new Float32Array(fieldW * fieldH);
+
+        function buildField() {
+            for (let y = 0; y < fieldH; y++) {
+                for (let x = 0; x < fieldW; x++) {
+                    const p = { x: x, y: y };
+                    const [w1, w2, w3] = barycentric(p, V1, V2, V3);
+                    const idx = y * fieldW + x;
+                    const idx4 = idx * 4;
+                    if (w1 >= 0 && w2 >= 0 && w3 >= 0) {
+                        const b = Math.max(w1, w2, w3); // [1/3, 1]
+                        bdfMap[idx] = b;
+                        const t = (b - 1 / 3) / (1 - 1 / 3); // normalize to [0,1]
+                        const c = colormap(t);
+                        fieldImg.data[idx4] = c[0];
+                        fieldImg.data[idx4 + 1] = c[1];
+                        fieldImg.data[idx4 + 2] = c[2];
+                        fieldImg.data[idx4 + 3] = 255;
+                    } else {
+                        bdfMap[idx] = NaN;
+                        fieldImg.data[idx4] = 255;
+                        fieldImg.data[idx4 + 1] = 255;
+                        fieldImg.data[idx4 + 2] = 255;
+                        fieldImg.data[idx4 + 3] = 255;
+                    }
+                }
+            }
+        }
+        buildField();
+
+        // ------- Drawing -------
+        function drawTriangleOutline(ctx) {
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#2c3e50';
+            ctx.beginPath();
+            ctx.moveTo(V1.x, V1.y);
+            ctx.lineTo(V2.x, V2.y);
+            ctx.lineTo(V3.x, V3.y);
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        function drawVertexLabels(ctx) {
+            const labels = [
+                { v: V1, name: 'V₁', dx: 0, dy: -10 },
+                { v: V2, name: 'V₂', dx: -14, dy: 14 },
+                { v: V3, name: 'V₃', dx: 14, dy: 14 }
+            ];
+            ctx.fillStyle = '#204d93';
+            ctx.font = 'bold 16px "Google Sans", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (const { v, name, dx, dy } of labels) {
+                ctx.fillStyle = '#204d93';
+                ctx.beginPath();
+                ctx.arc(v.x, v.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillText(name, v.x + dx, v.y + dy);
+            }
+        }
+
+        function drawWeightLines(ctx, p, weights) {
+            // Draw colored lines from p to each vertex with thickness ∝ weight
+            const verts = [V1, V2, V3];
+            const colors = ['#e74c3c', '#27ae60', '#f39c12'];
+            for (let i = 0; i < 3; i++) {
+                ctx.strokeStyle = colors[i];
+                ctx.lineWidth = 1 + weights[i] * 5;
+                ctx.globalAlpha = 0.55;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(verts[i].x, verts[i].y);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1.0;
+        }
+
+        function drawPoint(ctx, p) {
+            // Outer ring
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.95)';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#204d93';
+            ctx.stroke();
+            // Inner dot
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#204d93';
+            ctx.fill();
+        }
+
+        function drawTriangleView() {
+            triCtx.clearRect(0, 0, W, H);
+            // Light fill
+            triCtx.fillStyle = '#f0f4fa';
+            triCtx.beginPath();
+            triCtx.moveTo(V1.x, V1.y);
+            triCtx.lineTo(V2.x, V2.y);
+            triCtx.lineTo(V3.x, V3.y);
+            triCtx.closePath();
+            triCtx.fill();
+
+            const [w1, w2, w3] = barycentric(pt, V1, V2, V3);
+            drawWeightLines(triCtx, pt, [w1, w2, w3]);
+            drawTriangleOutline(triCtx);
+            drawVertexLabels(triCtx);
+            drawPoint(triCtx, pt);
+
+            // Show centroid as a faint cross
+            triCtx.strokeStyle = 'rgba(120,120,120,0.6)';
+            triCtx.lineWidth = 1;
+            triCtx.beginPath();
+            triCtx.moveTo(centroid.x - 5, centroid.y);
+            triCtx.lineTo(centroid.x + 5, centroid.y);
+            triCtx.moveTo(centroid.x, centroid.y - 5);
+            triCtx.lineTo(centroid.x, centroid.y + 5);
+            triCtx.stroke();
+
+            // Update side panel
+            document.getElementById('bdf-w1').textContent = w1.toFixed(3);
+            document.getElementById('bdf-w2').textContent = w2.toFixed(3);
+            document.getElementById('bdf-w3').textContent = w3.toFixed(3);
+            const bv = Math.max(w1, w2, w3);
+            document.getElementById('bdf-bvalue').textContent = bv.toFixed(3);
+        }
+
+        function drawContours() {
+            // Render contour lines by detecting BDF level crossings between adjacent pixels.
+            const showContours = document.getElementById('bdf-show-contours').checked;
+            if (!showContours) return;
+            const N = parseInt(document.getElementById('bdf-contour-count').value, 10);
+            // Build set of contour levels in (1/3, 1)
+            const levels = [];
+            for (let i = 1; i <= N; i++) {
+                levels.push(1 / 3 + (i / (N + 1)) * (1 - 1 / 3));
+            }
+            const img = fieldCtx.getImageData(0, 0, fieldW, fieldH);
+            const data = img.data;
+            for (let y = 0; y < fieldH - 1; y++) {
+                for (let x = 0; x < fieldW - 1; x++) {
+                    const i00 = y * fieldW + x;
+                    const i10 = y * fieldW + (x + 1);
+                    const i01 = (y + 1) * fieldW + x;
+                    const a = bdfMap[i00];
+                    const b = bdfMap[i10];
+                    const c = bdfMap[i01];
+                    if (isNaN(a) || isNaN(b) || isNaN(c)) continue;
+                    let onContour = false;
+                    for (const L of levels) {
+                        if ((a - L) * (b - L) < 0 || (a - L) * (c - L) < 0) {
+                            onContour = true;
+                            break;
+                        }
+                    }
+                    if (onContour) {
+                        const idx = i00 * 4;
+                        data[idx] = 255;
+                        data[idx + 1] = 255;
+                        data[idx + 2] = 255;
+                        data[idx + 3] = 255;
+                    }
+                }
+            }
+            fieldCtx.putImageData(img, 0, 0);
+        }
+
+        function drawFieldView() {
+            // Restore base field
+            fieldCtx.putImageData(fieldImg, 0, 0);
+            drawContours();
+
+            // Triangle outline on top
+            drawTriangleOutline(fieldCtx);
+
+            // Draw current point on the field too
+            const [w1, w2, w3] = barycentric(pt, V1, V2, V3);
+            drawPoint(fieldCtx, pt);
+
+            // Annotate vertices
+            fieldCtx.fillStyle = '#1a1a1a';
+            fieldCtx.font = 'bold 14px "Google Sans", sans-serif';
+            fieldCtx.textAlign = 'center';
+            fieldCtx.fillText('V₁', V1.x, V1.y - 8);
+            fieldCtx.fillText('V₂', V2.x - 12, V2.y + 16);
+            fieldCtx.fillText('V₃', V3.x + 12, V3.y + 16);
+        }
+
+        function redraw() {
+            drawTriangleView();
+            drawFieldView();
+        }
+
+        // ------- Mouse / touch handling -------
+        function getCanvasPos(canvas, evt) {
+            const rect = canvas.getBoundingClientRect();
+            const sx = canvas.width / rect.width;
+            const sy = canvas.height / rect.height;
+            const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+            const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+            return {
+                x: (clientX - rect.left) * sx,
+                y: (clientY - rect.top) * sy
+            };
+        }
+
+        function setPointFromEvent(canvas, evt) {
+            const p = getCanvasPos(canvas, evt);
+            pt = clampToTriangle(p);
+            redraw();
+        }
+
+        function attachDragHandlers(canvas) {
+            canvas.addEventListener('mousedown', (e) => {
+                dragging = true;
+                setPointFromEvent(canvas, e);
+            });
+            canvas.addEventListener('mousemove', (e) => {
+                if (dragging) setPointFromEvent(canvas, e);
+            });
+            window.addEventListener('mouseup', () => { dragging = false; });
+
+            canvas.addEventListener('touchstart', (e) => {
+                dragging = true;
+                setPointFromEvent(canvas, e);
+                e.preventDefault();
+            }, { passive: false });
+            canvas.addEventListener('touchmove', (e) => {
+                if (dragging) {
+                    setPointFromEvent(canvas, e);
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            window.addEventListener('touchend', () => { dragging = false; });
+        }
+        attachDragHandlers(triCanvas);
+        attachDragHandlers(fieldCanvas);
+
+        // ------- Controls -------
+        document.getElementById('bdf-show-contours').addEventListener('change', redraw);
+        const cntInput = document.getElementById('bdf-contour-count');
+        const cntVal = document.getElementById('bdf-contour-count-val');
+        cntInput.addEventListener('input', () => {
+            cntVal.textContent = cntInput.value;
+            redraw();
+        });
+        document.getElementById('bdf-reset-btn').addEventListener('click', () => {
+            pt = { x: centroid.x, y: centroid.y };
+            redraw();
+        });
+
+        // First render
+        redraw();
+    })();
+    </script>
+
+</body>
+
+</html>
